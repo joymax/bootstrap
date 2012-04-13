@@ -188,7 +188,7 @@ def main(args):
                       help="Path to virtualenv to use")
     parser.add_option("-P", "--python", dest="interpreter",
                       default=None, action="store", type="string",
-                      help="Path to virtualenv to use")
+                      help="Path to Python Interpreter to use")
     parser.add_option("-s", "--no-site", dest="no_site",
                       default=False, action="store_true",
                       help="Don't use global site-packages on create virtualenv")
