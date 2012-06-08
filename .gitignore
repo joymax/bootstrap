@@ -1,0 +1,12 @@
+*.pyc
+*.pyo
+
+ve/
+
+._bootstrap.etag
+bootstrap.cfg
+pre-reqs.txt
+pre-requirements.txt
+requirements.txt
+requirements.py_*
+requirements.pypy_*
