@@ -3,28 +3,38 @@
 Bootstrap script for prepare environ for project
 """
 
+import copy
+import optparse
 import os
 import subprocess
-import optparse
 import sys
+
+from ConfigParser import Error as ConfigParserError, SafeConfigParser
+from distutils.util import strtobool
+
 try:
     from urllib2 import Request, urlopen, HTTPError, URLError
 except ImportError:
     from urllib.request import Request, urlopen, \
                                 HTTPError, URLError
 
+
 BOOTSTRAP_MOD = 'bootstrap'
 BOOTSTRAP_ETAG = '._' + BOOTSTRAP_MOD + '.etag'
 BOOTSTRAP_PY = BOOTSTRAP_MOD + '.py'
-BOOTSTRAP_URL = 'https://raw.github.com/jellycrystal/bootstrap/master/bootstrap.py'
+BOOTSTRAP_URL = \
+    'https://raw.github.com/jellycrystal/bootstrap/master/bootstrap.py'
 DEFAULT_PRE_REQS = ['virtualenv']
 
-def _warn(msg):
-    sys.stderr.write("Warn: %s\n" % (msg,))
 
 def _err(msg):
     sys.stderr.write("Error: %s\n" % (msg,))
     sys.exit(1)
+
+
+def _warn(msg):
+    sys.stderr.write("Warn: %s\n" % (msg,))
+
 
 def get_pre_reqs(pre_req_txt):
     """Getting list of pre-requirement executables"""
@@ -41,38 +51,51 @@ def get_pre_reqs(pre_req_txt):
             continue
         yield pre_req
 
+
 def check_pre_req(pre_req):
     """Check for pre-requirement"""
     if subprocess.call(['which', pre_req],
                        stderr=subprocess.PIPE, stdout=subprocess.PIPE) == 1:
         _err("Couldn't find '%s' in PATH" % pre_req)
 
-def provide_virtualenv(ve_target, no_site=True, interpreter=None):
+
+def provide_virtualenv(ve_target, no_site=True, interpreter=None, config=None):
     """Provide virtualenv"""
-    args = ['--distribute']
+    config = config or {}
+    config.update({'distribute': True})
+
     if no_site:
-        args.append('--no-site')
-    if interpreter is not None:
-        args.append('--python={0}'.format(interpreter))
+        config.update({'no_site': True})
+
+    if interpreter:
+        config.update({'python': interpreter})
+
+    args = config_to_args(config)
     if not os.path.exists(ve_target):
         subprocess.call(['virtualenv'] + args + [ve_target])
 
-def install_pip_requirements(ve_target, upgrade=False):
-    """Install required Python packages into virtualenv"""
-    version = sys.version_info
-    prefix = "py"
-    if hasattr(sys, "pypy_version_info"):
-        version = sys.pypy_version_info
-        prefix = "pypy"
 
+def install_pip_requirements(ve_target, upgrade=False, config=None):
+    """Install required Python packages into virtualenv"""
+    # Initial vars
+    base_config = config or {}
+    pip_path = os.path.join(ve_target, 'bin', 'pip')
+    prefix = 'py'
+    req_name = 'requirements'
+    version = sys.version_info
+
+    # Update prefix and version if PyPy used
+    if hasattr(sys, "pypy_version_info"):
+        prefix = "pypy"
+        version = sys.pypy_version_info
     elif isinstance(version, tuple):
-        major, minor, micro, t, b = version
+        major, minor, micro, _, _ = version
     else:
         major = version.major
         minor = version.minor
         micro = version.micro
 
-    req_name = "requirements"
+    # Supported requirements filenames
     extensions = [
         "generic",
         "txt",
@@ -81,22 +104,32 @@ def install_pip_requirements(ve_target, upgrade=False):
         "{0}_{1}{2}{3}".format(prefix, major, minor, micro)
     ]
 
-    pip_path = os.path.join(ve_target, 'bin', 'pip')
+    # Cycle all supported requirements filenames and if file exists install
+    # those requirements to virtual environment
     for ext in extensions:
         filename = "{0}.{1}".format(req_name, ext)
+
         if os.path.exists(filename):
             sys.stderr.write("Installing {0}...".format(filename))
-            call_args = [pip_path, 'install', '-r', filename]
+
+            config = base_config.copy()
+            config.update({'requirement': filename})
+
             if upgrade:
-                call_args.append('--upgrade')
+                config.update({'upgrade': True})
+
+            args = config_to_args(config)
+            call_args = [pip_path, 'install'] + args
+
             try:
                 if subprocess.call(call_args):
                     _err("Failed to install requirements")
             except OSError:
-                _err("Something went wrong during installation requirements: " + \
-                     " ".join(call_args))
+                _err("Something went wrong during installation " \
+                     "requirements: {0}".format(join(call_args)))
 
-def pass_control_to_doit(ve_target):
+
+def pass_control_to_doit(ve_target, config=None):
     """Passing further control to doit"""
     try:
         import dodo
@@ -106,6 +139,7 @@ def pass_control_to_doit(ve_target):
     if hasattr(dodo, 'task_bootstrap'):
         doit = os.path.join(ve_target, 'bin', 'doit')
         subprocess.call([doit, 'bootstrap'])
+
 
 def do(func, *args, **kwargs):
     """Announce func.__doc__ and run func with provided arguments"""
@@ -121,14 +155,17 @@ def do(func, *args, **kwargs):
 
 
 def bootstrap(pre_req_txt, ve_target, no_site=True,
-        upgrade=False, interpreter=None):
+        upgrade=False, interpreter=None, config=None):
     ve_target = os.path.normpath(os.path.abspath(ve_target))
     os.environ['BOOTSTRAP_VIRTUALENV_TARGET'] = ve_target
     for pre_req in do(get_pre_reqs, pre_req_txt):
         do(check_pre_req, pre_req)
-    do(provide_virtualenv, ve_target, no_site=no_site, interpreter=interpreter)
-    do(install_pip_requirements, ve_target, upgrade=upgrade)
-    do(pass_control_to_doit, ve_target)
+    do(provide_virtualenv, ve_target, no_site=no_site, interpreter=interpreter,
+       config=config['virtualenv'])
+    do(install_pip_requirements, ve_target, upgrade=upgrade,
+       config=config['pip'])
+    do(pass_control_to_doit, ve_target, config=config['doit'])
+
 
 def update(**kwargs):
     """
@@ -137,20 +174,24 @@ def update(**kwargs):
     # Idea taken from
     # http://tarekziade.wordpress.com/2011/02/10/a-simple-self-upgrade-build-pattern/
     if kwargs.pop('disable_bootstrap_update', False):
-        bootstrap(**kwargs)
+        return bootstrap(**kwargs)
+
+    bootstrap_url = kwargs.pop('bootstrap_url', BOOTSTRAP_URL)
     headers = {}
     etag = current_etag = None
+
     # Getting the file age
     if os.path.exists(BOOTSTRAP_ETAG):
         with open(BOOTSTRAP_ETAG) as fh:
             current_etag = fh.read().strip()
             headers['If-None-Match'] = current_etag
 
-    request = Request(BOOTSTRAP_URL, headers=headers)
+    request = Request(bootstrap_url, headers=headers)
+
     # Checking the last version on server
     try:
         sys.stderr.write("Fetching bootstrap's updates from %s..." %
-                         BOOTSTRAP_URL)
+                         bootstrap_url)
         url = urlopen(request, timeout=5)
         etag = url.headers.get('ETag')
     except HTTPError as e:
@@ -178,8 +219,31 @@ def update(**kwargs):
     mod.bootstrap(**kwargs)
 
 
-def main(args):
+def config_to_args(config):
+    """
+    Convert config dict to arguments list.
+    """
+    result = []
+
+    for key, value in config.iteritems():
+        if value is False:
+            continue
+
+        key = key.replace('_', '-')
+        result.append('--{0}'.format(key))
+
+        if value is not True:
+            result.append(str(value))
+
+    return result
+
+
+def init_parser():
+    """
+    Initialize ``OptionParser`` instance to read command line arguments.
+    """
     parser = optparse.OptionParser()
+
     parser.add_option("-p", "--pre-requirements", dest="pre_requirements",
                       default="pre-reqs.txt", action="store", type="string",
                       help="File with list of pre-reqs")
@@ -191,22 +255,155 @@ def main(args):
                       help="Path to Python Interpreter to use")
     parser.add_option("-s", "--no-site", dest="no_site",
                       default=False, action="store_true",
-                      help="Don't use global site-packages on create virtualenv")
+                      help="Don't use global site-packages on create " \
+                           "virtualenv")
     parser.add_option("-u", "--upgrade", dest="upgrade",
                       default=False, action="store_true",
                       help="Upgrade packages")
     parser.add_option("-b", "--disable-bootstrap-update",
                       dest="disable_bootstrap_update", default=False,
                       action="store_true",
-                      help="Disable self-update of bootstrap script.")
+                      help="Disable self-update of bootstrap script")
+    parser.add_option("-U", "--bootstrap-url", dest="bootstrap_url",
+                      default=BOOTSTRAP_URL, metavar="URL",
+                      help="URL to use for updating bootstrap script. By " \
+                           "default: '%s'" % BOOTSTRAP_URL)
+    parser.add_option("-c", "--config", dest="config", default="bootstrap.cfg",
+                      metavar="PATH",
+                      help="Path to config file to use. By default: " \
+                           "'bootstrap.cfg'")
+
+    return parser
+
+
+def override_bootstrap_options(options, config):
+    """
+    Override default options from command line with values from config file.
+    """
+    for key, value in config.iteritems():
+        if hasattr(options, key):
+            setattr(options, key, value)
+    return options
+
+
+def read_config(filename):
+    """
+    Read config from ``filename``. You could use ``~`` and environment
+    variables in filename it later would be processed with ``expanduser`` and
+    ``expandvar`` methods of ``os.path`` library.
+
+    The main purpose of config file is give user ability to full configure
+    ``virtualenv``, ``pip``, ``doit`` and ``bootstrap`` itself. By default,
+    script would search ``bootstrap.cfg`` in current working directory, but you
+    could to change this behavior by passing ``-c PATH`` option to the
+    ``bootstrap.py`` sys args.
+
+    The ``bootstrap.cfg`` file should use format supported by standard
+    Python's ``ConfigParser`` library. More information available at:
+    `http://docs.python.org/library/configparser.html`_.
+
+    Example of config file::
+
+        [bootstrap]
+        disable_bootstrap_update = True
+        no_site = True
+        pre_requirements = pre-requirements.txt
+        upgrade = False
+
+        [virtualenv]
+        distribute = True
+        never_download = True
+
+        [pip]
+        download_cache = /var/cache/pip
+        use_mirrors = True
+
+    .. note:: If config option name contains underscore it would be replaced
+       with dash, so ``disable_bootstrap_update`` become
+       ``disable-bootstrap-update`` etc.
+
+    .. note:: True/False and integer values would be auto detected all other
+       values would be returned as string.
+
+    If no config file would be found, default options would be used.
+
+    As result function returns ``dict`` instance, where sections would be
+    keys and section values would be inherit dicts, like::
+
+        {
+            'bootstrap': {
+                'disable_bootstrap_update': True,
+                'no_site': True,
+                'pre_requirements': 'pre-requirements.txt',
+                'upgrade': False
+            },
+            'virtualenv': {
+                'distribute': True,
+                'never_download': True
+            },
+            'pip': {
+                'download_cache': '/var/cache/pip',
+                'use_mirrors': True
+            }
+        }
+
+    """
+    filename = os.path.expanduser(os.path.expandvars(filename))
+
+    sections = ('bootstrap', 'doit', 'pip', 'virtualenv')
+    default = dict([(section, {}) for section in sections])
+
+    if not os.path.isfile(filename):
+        return copy.deepcopy(default)
+
+    config = SafeConfigParser()
+
+    try:
+        config.read(filename)
+    except ConfigParserError:
+        _warn('Cannot parse %r as valid config file.' % filename)
+        return copy.deepcopy(default)
+
+    data = copy.deepcopy(default)
+
+    for section in sections:
+        try:
+            items = config.items(section)
+        except ConfigParserError:
+            continue
+
+        data[section] = {}
+
+        for key, value in items:
+            try:
+                value = strtobool(value)
+            except ValueError:
+                if value.isdigit():
+                    value = int(value)
+
+            data[section][key] = value
+
+    return data
+
+
+def main(args):
+    parser = init_parser()
     options, args = parser.parse_args(args)
+
+    config = read_config(options.config)
+    options = override_bootstrap_options(options, config['bootstrap'])
+
     update(
         disable_bootstrap_update=options.disable_bootstrap_update,
+        bootstrap_url=options.bootstrap_url,
         pre_req_txt=options.pre_requirements,
         ve_target=options.virtualenv,
         no_site=options.no_site,
         interpreter=options.interpreter,
-        upgrade=options.upgrade)
+        upgrade=options.upgrade,
+        config=config
+    )
+
 
 if __name__ == '__main__':
     main(sys.argv)
