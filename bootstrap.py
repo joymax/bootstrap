@@ -126,7 +126,7 @@ def install_pip_requirements(ve_target, upgrade=False, config=None):
                     _err("Failed to install requirements")
             except OSError:
                 _err("Something went wrong during installation " \
-                     "requirements: {0}".format(join(call_args)))
+                     "requirements: {0}".format(call_args))
 
 
 def pass_control_to_doit(ve_target, config=None):
@@ -227,14 +227,17 @@ def config_to_args(config):
     result = []
 
     for key, value in config.iteritems():
+        print value
+
         if value is False:
             continue
 
         key = key.replace('_', '-')
-        result.append('--{0}'.format(key))
 
         if value is not True:
-            result.append(str(value))
+            result.append('--{0}={1}'.format(key, str(value)))
+        else:
+            result.append('--{0}'.format(key))
 
     return result
 
@@ -377,7 +380,7 @@ def read_config(filename):
 
         for key, value in items:
             try:
-                value = strtobool(value)
+                value = bool(strtobool(value))
             except ValueError:
                 if value.isdigit():
                     value = int(value)
