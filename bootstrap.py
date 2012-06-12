@@ -126,7 +126,7 @@ def install_pip_requirements(ve_target, upgrade=False, config=None):
                     _err("Failed to install requirements")
             except OSError:
                 _err("Something went wrong during installation " \
-                     "requirements: {0}".format(join(call_args)))
+                     "requirements: {0}".format(' '.join(call_args)))
 
 
 def pass_control_to_doit(ve_target, config=None):
