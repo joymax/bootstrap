@@ -173,7 +173,8 @@ def update(**kwargs):
     """
     # Idea taken from
     # http://tarekziade.wordpress.com/2011/02/10/a-simple-self-upgrade-build-pattern/
-    if kwargs.pop('disable_bootstrap_update', False):
+    if not kwargs.pop('enable_bootstrap_update', False):
+        kwargs.pop('bootstrap_url')
         return bootstrap(**kwargs)
 
     bootstrap_url = kwargs.pop('bootstrap_url', BOOTSTRAP_URL)
@@ -260,8 +261,8 @@ def init_parser():
     parser.add_option("-u", "--upgrade", dest="upgrade",
                       default=False, action="store_true",
                       help="Upgrade packages")
-    parser.add_option("-b", "--disable-bootstrap-update",
-                      dest="disable_bootstrap_update", default=False,
+    parser.add_option("-b", "--enable-bootstrap-update",
+                      dest="enable_bootstrap_update", default=False,
                       action="store_true",
                       help="Disable self-update of bootstrap script")
     parser.add_option("-U", "--bootstrap-url", dest="bootstrap_url",
@@ -305,7 +306,7 @@ def read_config(filename):
     Example of config file::
 
         [bootstrap]
-        disable_bootstrap_update = True
+        enable_bootstrap_update = True
         no_site = True
         pre_requirements = pre-requirements.txt
         upgrade = False
@@ -319,8 +320,8 @@ def read_config(filename):
         use_mirrors = True
 
     .. note:: If config option name contains underscore it would be replaced
-       with dash, so ``disable_bootstrap_update`` become
-       ``disable-bootstrap-update`` etc.
+       with dash, so ``enable_bootstrap_update`` become
+       ``enable-bootstrap-update`` etc.
 
     .. note:: True/False and integer values would be auto detected all other
        values would be returned as string.
@@ -332,7 +333,7 @@ def read_config(filename):
 
         {
             'bootstrap': {
-                'disable_bootstrap_update': True,
+                'enable_bootstrap_update': True,
                 'no_site': True,
                 'pre_requirements': 'pre-requirements.txt',
                 'upgrade': False
@@ -394,7 +395,7 @@ def main(args):
     options = override_bootstrap_options(options, config['bootstrap'])
 
     update(
-        disable_bootstrap_update=options.disable_bootstrap_update,
+        enable_bootstrap_update=options.enable_bootstrap_update,
         bootstrap_url=options.bootstrap_url,
         pre_req_txt=options.pre_requirements,
         ve_target=options.virtualenv,

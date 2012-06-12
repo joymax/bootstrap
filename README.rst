@@ -27,8 +27,8 @@ Usage
                             Path to Python Interpreter to use
       -s, --no-site         Don't use global site-packages on create virtualenv
       -u, --upgrade         Upgrade packages
-      -b, --disable-bootstrap-update
-                            Disable self-update of bootstrap script
+      -b, --enable-bootstrap-update
+                            Enable self-update of bootstrap script
       -U URL, --bootstrap-url=URL
                             URL to use for updating bootstrap script. By default:
                             'https://raw.github.com/jellycrystal/bootstrap/master/
