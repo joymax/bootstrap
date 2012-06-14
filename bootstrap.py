@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Bootstrap script for prepare environ for project
+Bootstrap script preparing environment for Python project
 """
 
 import copy
@@ -37,7 +37,7 @@ def _warn(msg):
 
 
 def get_pre_reqs(pre_req_txt):
-    """Getting list of pre-requirement executables"""
+    """Getting the list of pre-required executables"""
     try:
         pre_reqs = open(pre_req_txt).readlines()
     except IOError:
@@ -53,7 +53,7 @@ def get_pre_reqs(pre_req_txt):
 
 
 def check_pre_req(pre_req):
-    """Check for pre-requirement"""
+    """Check pre-requirements"""
     if subprocess.call(['which', pre_req],
                        stderr=subprocess.PIPE, stdout=subprocess.PIPE) == 1:
         _err("Couldn't find '%s' in PATH" % pre_req)
@@ -125,12 +125,12 @@ def install_pip_requirements(ve_target, upgrade=False, config=None):
                 if subprocess.call(call_args):
                     _err("Failed to install requirements")
             except OSError:
-                _err("Something went wrong during installation " \
+                _err("Something went wrong during installation "\
                      "requirements: {0}".format(call_args))
 
 
 def pass_control_to_doit(ve_target, config=None):
-    """Passing further control to doit"""
+    """Pass further control to doit"""
     try:
         import dodo
     except ImportError:
@@ -292,18 +292,17 @@ def override_bootstrap_options(options, config):
 
 def read_config(filename):
     """
-    Read config from ``filename``. You could use ``~`` and environment
-    variables in filename it later would be processed with ``expanduser`` and
+    Read config from ``filename``. It's possible to use ``~`` and environment
+    variables in filename. They will be processed with ``expanduser`` and
     ``expandvar`` methods of ``os.path`` library.
 
-    The main purpose of config file is give user ability to full configure
+    The main purpose of config file is to give user ability to fully configure
     ``virtualenv``, ``pip``, ``doit`` and ``bootstrap`` itself. By default,
-    script would search ``bootstrap.cfg`` in current working directory, but you
-    could to change this behavior by passing ``-c PATH`` option to the
-    ``bootstrap.py`` sys args.
+    script searches ``bootstrap.cfg`` in current working directory. Such behavior
+    can be changed passing ``-c PATH`` option to ``bootstrap.py`` sys args.
 
     The ``bootstrap.cfg`` file should use format supported by standard
-    Python's ``ConfigParser`` library. More information available at:
+    Python's ``ConfigParser`` library. More information is available at:
     `http://docs.python.org/library/configparser.html`_.
 
     Example of config file::
@@ -322,17 +321,17 @@ def read_config(filename):
         download_cache = /var/cache/pip
         use_mirrors = True
 
-    .. note:: If config option name contains underscore it would be replaced
-       with dash, so ``enable_bootstrap_update`` become
-       ``enable-bootstrap-update`` etc.
+    .. note:: If config option name contains underscore it will be replaced
+       with a dash, e.g. ``enable_bootstrap_update`` becomes
+       ``enable-bootstrap-update``.
 
-    .. note:: True/False and integer values would be auto detected all other
-       values would be returned as string.
+    .. note:: True/False and integer values are auto detected. All other
+       values are returned as strings.
 
-    If no config file would be found, default options would be used.
+    If no config file is found, default options will be used.
 
-    As result function returns ``dict`` instance, where sections would be
-    keys and section values would be inherit dicts, like::
+    Function returns ``dict`` instance as a result, where sections are
+    keys and section values are dicts, like::
 
         {
             'bootstrap': {
