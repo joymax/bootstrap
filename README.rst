@@ -2,7 +2,7 @@
 bootstrap.py
 ============
 
-Self-update bootstrap script for prepare environment for Python project.
+Self-updating bootstrap script for preparation of environment for Python projects.
 
 Installation
 ============
@@ -41,10 +41,10 @@ Usage
 How it works
 ============
 
-* First of all, script check project pre requirements
-* Then create virtual environment if necessary
-* Then install pip requirements to virtual environment
-* And finally pass control to doit
+* First of all, script checks project preliminary requirements
+* Then creates virtual environment if necessary
+* Then installs pip requirements to virtual environment
+* And finally passes control to doit
 
-.. warning:: At current time not all available options covered in this README.
-   More information coming soon.
+.. warning:: At the current time not all available options are covered in this README.
+   More information is coming soon.
